@@ -1,0 +1,15 @@
+services:
+  asset-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: asset-manager
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: ${DATABASE_URL}
+    ports:
+      - "5000:5000"
