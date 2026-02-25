@@ -1,0 +1,63 @@
+Eres un experto en Next.js (App Router), TailwindCSS, Framer Motion, i18n y APIs con streaming SSE.
+Necesito generar un portafolio moderno, minimalista y dinámico estilo Vercel/Linear para un fullstack developer AI-powered obsesionado con UX.
+
+OBJETIVO
+- Sitio bilingüe (es/en), SEO-friendly, rápido, accesible (a11y).
+- UI minimalista con microinteracciones modernas y transiciones notorias pero sobrias.
+- Chatbot integrado en un drawer flotante (bottom-right) que consume un endpoint SSE.
+- Preparado para dockerizar y desplegar en un servidor personal.
+
+STACK Y REQUISITOS TÉCNICOS
+- Next.js 14+ App Router (TypeScript).
+- TailwindCSS.
+- Framer Motion para transiciones: page transitions, section reveal, hover cards.
+- i18n: usar next-intl (recomendado) o alternativa equivalente.
+- Contenido: usar data local en /content o /data (JSON/TS) para proyectos, skills, certificaciones, blog posts (MDX opcional).
+- Blog: /blog con listado y /blog/[slug]. Puede ser MDX simple.
+- SEO: metadata por ruta, OpenGraph, sitemap básico.
+- Componentes: Navbar con toggle de idioma y theme switch (light/dark), Footer.
+- Diseño: neutrales + 1 accent color, tipografía moderna (Inter o Geist).
+- Chatbot:
+  - UI: botón flotante, drawer con historial, input, estado "streaming".
+  - Backend: /api/chat que responde SSE (text/event-stream).
+  - Por ahora un stub que haga streaming de texto (simula tokens), pero estructura preparada para conectar a una LLM externa posteriormente (URL configurable por env).
+  - Debe soportar cancelación (AbortController) del stream.
+- Performance: usar next/image, lazy loading donde aplique.
+
+INFORMACIÓN DEL PERFIL
+- Nombre: Gerardo Melgoza
+- Rol objetivo: “AI-powered Fullstack Developer” (ES y EN)
+- Ubicación: Guadalajara, Jalisco, México
+- CTA principal: “Contrátame”
+- Links: placeholders para CV, LinkedIn, GitHub
+
+RUTAS
+- / : landing con hero, proof bar, featured projects (3), skills, experience, now learning, certifications, contact.
+- /projects : lista con filtros (stack/tags) y búsqueda simple.
+- /projects/[slug] : detalle de proyecto con secciones (overview, stack, retos, soluciones, resultados).
+- /about : historia breve + filosofía UX + toolkit AI + stack.
+- /blog y /blog/[slug] : blog simple.
+- /api/chat : endpoint SSE.
+
+CONTENIDO INICIAL
+- 1 proyecto real:
+  - “Invitación Boda” | Ionic + Angular + Firebase | descripción: app invitación con RSVP, info del evento, etc.
+- 2 proyectos placeholders “Coming Soon” con estructura lista.
+- Skills: Frontend, Backend, Infra, AI tooling (LLMs, prompt engineering, codegen tools).
+- Certificaciones: placeholders con campos (title, issuer, year, url).
+- Now learning: 3 bullets con fecha.
+
+ENTREGABLE
+- Genera el repositorio completo con estructura de carpetas clara.
+- Incluye README con instrucciones:
+  - dev: npm install, npm run dev
+  - build/start
+  - variables de entorno para LLM endpoint futuro
+  - docker build/run + ejemplo docker-compose
+- Incluye Dockerfile multi-stage optimizado para Next.js.
+- Incluye un ejemplo de docker-compose.yml (opcional) para correr en servidor personal.
+- Usa buenas prácticas: eslint, prettier (si lo consideras), y tipado estricto.
+
+IMPORTANTE
+- La UI debe verse premium: spacing consistente, bordes suaves, sombras sutiles, animaciones sobrias.
+- Evita exceso de texto; usa copy directo.
