@@ -1,4 +1,17 @@
 services:
+  asset-db:
+    image: postgres:16-alpine
+    container_name: asset-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: assetdb
+      POSTGRES_USER: assetuser
+      POSTGRES_PASSWORD: assetpass
+    volumes:
+      - /srv/asset-manager/db/postgres:/var/lib/postgresql/data
+    networks:
+      - asset-net
+
   asset-manager:
     build:
       context: .
@@ -11,5 +24,14 @@ services:
       NODE_ENV: production
       PORT: 5000
       DATABASE_URL: ${DATABASE_URL}
-    ports:
-      - "5000:5000"
+    depends_on:
+      - asset-db
+    networks:
+      - asset-net
+      - proxy   # para que Traefik lo pueda alcanzar por nombre
+
+networks:
+  asset-net:
+    name: asset-net
+  proxy:
+    external: true
