@@ -1,11 +1,11 @@
 import { motion } from "framer-motion";
 import { Link } from "wouter";
-import { ArrowRight, Terminal, Database, Sparkles, Code2, MoveRight } from "lucide-react";
+import { ArrowRight, Database, Sparkles, Code2, MoveRight } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { ProjectCard } from "@/components/ProjectCard";
-import { useProjects, useSkills } from "@/hooks/use-projects"; // Reuse or split
+import { useProjects } from "@/hooks/use-projects";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Animation variants
