@@ -17,22 +17,6 @@ services:
       timeout: 3s
       retries: 20
 
-  asset-migrator:
-    image: node:20-alpine
-    container_name: asset-migrator
-    working_dir: /app
-    volumes:
-      - ./:/app
-    env_file:
-      - .env
-    depends_on:
-      asset-db:
-        condition: service_healthy
-    networks:
-      - asset-net
-    restart: "no"
-    command: sh -lc "npm ci && npx drizzle-kit push"
-
   asset-manager:
     build:
       context: .
@@ -48,14 +32,10 @@ services:
     depends_on:
       asset-db:
         condition: service_healthy
-      asset-migrator:
-        condition: service_completed_successfully
     networks:
       - asset-net
       - proxy
-    # NO abras puertos si lo expones por Traefik
-    # ports:
-    #   - "5000:5000"
+
 
 networks:
   asset-net:
