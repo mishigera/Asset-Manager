@@ -1,13 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
-import { portfolioProjects } from "@/data/portfolio";
 
-export function  useProjects() {
+export function useProjects() {
   return useQuery({
-    queryKey: [api.projects.list.path],
+    queryKey: ["portfolio", "projects"],
     queryFn: async () => {
-      const res = await fetch(api.projects.list.path);
-      if (!res.ok) throw new Error("Failed to fetch projects");
+      const res = await fetch(buildUrl(api.projects.list.path));
+      if (!res.ok) {
+        throw new Error("No se pudieron cargar los proyectos");
+      }
       return api.projects.list.responses[200].parse(await res.json());
     },
   });
@@ -15,12 +16,15 @@ export function  useProjects() {
 
 export function useProject(slug: string) {
   return useQuery({
-    queryKey: [api.projects.get.path, slug],
+    queryKey: ["portfolio", "project", slug],
     queryFn: async () => {
-      const url = buildUrl(api.projects.get.path, { slug });
-      const res = await fetch(url);
-      if (res.status === 404) return null;
-      if (!res.ok) throw new Error("Failed to fetch project");
+      const res = await fetch(buildUrl(api.projects.get.path, { slug }));
+      if (res.status === 404) {
+        return null;
+      }
+      if (!res.ok) {
+        throw new Error("No se pudo cargar el proyecto");
+      }
       return api.projects.get.responses[200].parse(await res.json());
     },
     enabled: !!slug,
