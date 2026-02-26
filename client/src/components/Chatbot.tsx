@@ -98,20 +98,11 @@ export function Chatbot() {
   const sendChatRequest = async (historyWithUserMessage: ChatMessage[]) => {
     setIsTyping(true);
 
-    const history = messages;
-    const payload: { message: string; history?: ChatMessage[] } = {
-      message: historyWithUserMessage[historyWithUserMessage.length - 1].content,
-    };
-
-    if (history.length > 0) {
-      payload.history = history;
-    }
-
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ messages: historyWithUserMessage }),
       });
 
       if (!response.ok) {
