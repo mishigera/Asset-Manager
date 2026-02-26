@@ -3,8 +3,8 @@ import type { BlogPost, Certification, Project, Skill } from "@shared/schema";
 export const portfolioProjects: Project[] = [
   {
     id: 1,
-    slug: "proyecto-a",
-    title: "Proyecto A",
+    slug: "invitacion-personalizada",
+    title: "Invitación Personalizada",
     description: "Aplicación web de ejemplo con interfaz responsive y panel administrativo.",
     content:
       "## Resumen\n\nProyecto de ejemplo para mostrar arquitectura frontend y backend desacoplada.\n\n## Alcance\n\n- Gestión básica de contenido\n- Panel administrativo\n- Diseño responsive",
@@ -16,8 +16,8 @@ export const portfolioProjects: Project[] = [
   },
   {
     id: 2,
-    slug: "proyecto-b",
-    title: "Proyecto B",
+    slug: "dashboard-analitico",
+    title: "Dashboard Analítico",
     description: "Dashboard analítico de ejemplo con visualización de métricas clave.",
     content:
       "## Resumen\n\nDashboard de ejemplo para monitoreo de indicadores en tiempo real.\n\n## Funcionalidades\n\n- Visualización de métricas\n- Filtros básicos\n- Reportes resumidos",
@@ -29,8 +29,8 @@ export const portfolioProjects: Project[] = [
   },
   {
     id: 3,
-    slug: "proyecto-c",
-    title: "Proyecto C",
+    slug: "sitio-corporativo",
+    title: "Sitio Corporativo",
     description: "Sitio corporativo de ejemplo con secciones de contenido dinámico.",
     content:
       "## Resumen\n\nImplementación de sitio web de ejemplo orientado a performance y mantenibilidad.\n\n## Incluye\n\n- Secciones dinámicas\n- SEO técnico base\n- Componentes reutilizables",
