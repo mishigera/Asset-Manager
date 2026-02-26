@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-type ChatRole = "user" | "assistant" | "system";
+type ChatRole = "user" | "assistant";
 interface ChatMessage {
   role: ChatRole;
   content: string;
@@ -19,8 +19,6 @@ interface ContactForm {
 }
 
 const HISTORY_KEY = "portfolio_chat_history";
-const SYSTEM_PROMPT =
-  "Eres el asistente del portafolio de Gerardo. Responde breve, profesional y no inventes datos; si no sabes di 'No tengo esa información'.";
 const CONTACT_KEYWORDS = [
   "contacto",
   "correo",
@@ -77,7 +75,7 @@ export function Chatbot() {
     try {
       localStorage.setItem(
         HISTORY_KEY,
-        JSON.stringify(messages.filter((msg) => msg.role !== "system")),
+        JSON.stringify(messages),
       );
     } catch (error) {
       console.error("No se pudo guardar historial de chat:", error);
@@ -100,42 +98,34 @@ export function Chatbot() {
   const sendChatRequest = async (historyWithUserMessage: ChatMessage[]) => {
     setIsTyping(true);
 
-    const payloadMessages: ChatMessage[] =
-      messages.length === 0
-        ? [{ role: "system", content: SYSTEM_PROMPT }, ...historyWithUserMessage]
-        : historyWithUserMessage;
+    const history = messages;
+    const payload: { message: string; history?: ChatMessage[] } = {
+      message: historyWithUserMessage[historyWithUserMessage.length - 1].content,
+    };
+
+    if (history.length > 0) {
+      payload.history = history;
+    }
 
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: payloadMessages,
-          temperature: 0.4,
-          max_tokens: 220,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        let errorMessage = "Error al consultar el chat.";
-        try {
-          const body = await response.json();
-          if (typeof body?.error === "string") {
-            errorMessage = body.error;
-          }
-        } catch {
-          // no-op
-        }
-        throw new Error(errorMessage);
+        throw new Error("No se pudo contactar al asistente. Intenta de nuevo.");
       }
 
       const data = await response.json();
-      const assistantContent = data?.choices?.[0]?.message?.content;
+      const assistantContent =
+        data?.message ?? data?.reply ?? data?.choices?.[0]?.message?.content;
 
       if (typeof assistantContent !== "string" || !assistantContent.trim()) {
         appendMessage({
           role: "assistant",
-          content: "No tengo una respuesta en este momento.",
+          content: "No se pudo contactar al asistente. Intenta de nuevo.",
         });
         return;
       }
@@ -145,10 +135,7 @@ export function Chatbot() {
       console.error("Chat error:", error);
       appendMessage({
         role: "assistant",
-        content:
-          error instanceof Error
-            ? error.message
-            : "Lo siento, ha ocurrido un error de conexión.",
+        content: "No se pudo contactar al asistente. Intenta de nuevo.",
       });
     } finally {
       setIsTyping(false);
@@ -195,7 +182,11 @@ export function Chatbot() {
     } else if (!isValidEmail(trimmedEmail)) {
       nextErrors.email = "Escribe un correo válido.";
     }
-    if (!trimmedMessage) nextErrors.message = "Tu mensaje es requerido.";
+    if (!trimmedMessage) {
+      nextErrors.message = "Tu mensaje es requerido.";
+    } else if (trimmedMessage.length < 10) {
+      nextErrors.message = "El mensaje debe tener al menos 10 caracteres.";
+    }
 
     setContactErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
@@ -215,11 +206,7 @@ export function Chatbot() {
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok || payload?.ok !== true) {
-        const errorMessage =
-          typeof payload?.error === "string"
-            ? payload.error
-            : "No se pudo enviar el mensaje de contacto.";
-        appendMessage({ role: "assistant", content: errorMessage });
+        appendMessage({ role: "assistant", content: "No se pudo enviar. Intenta más tarde." });
         return;
       }
 
@@ -231,8 +218,7 @@ export function Chatbot() {
       console.error("Contact error:", error);
       appendMessage({
         role: "assistant",
-        content:
-          "No se pudo enviar por un problema de red. Intenta de nuevo en unos minutos.",
+        content: "No se pudo enviar. Intenta más tarde.",
       });
     } finally {
       setIsSendingContact(false);
@@ -325,7 +311,8 @@ export function Chatbot() {
                     <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0">
                       <Bot className="w-3 h-3" />
                     </div>
-                    <div className="bg-muted px-4 py-3 rounded-2xl rounded-tl-none border border-border/50 flex items-center gap-1">
+                    <div className="bg-muted px-4 py-3 rounded-2xl rounded-tl-none border border-border/50 flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Escribiendo…</span>
                       <motion.div animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0 }} className="w-1.5 h-1.5 bg-foreground/40 rounded-full" />
                       <motion.div animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} className="w-1.5 h-1.5 bg-foreground/40 rounded-full" />
                       <motion.div animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }} className="w-1.5 h-1.5 bg-foreground/40 rounded-full" />
