@@ -7,7 +7,6 @@ import { useI18n } from "@/lib/i18n";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 type ChatRole = "user" | "assistant" | "system";
-
 interface ChatMessage {
   role: ChatRole;
   content: string;
