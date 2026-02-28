@@ -9,10 +9,20 @@ export const projects = pgTable("projects", {
   description: text("description").notNull(),
   content: text("content").notNull(),
   stack: json("stack").$type<string[]>().notNull(),
+  imageKey: text("image_key"),
   imageUrl: text("image_url"),
   githubUrl: text("github_url"),
   demoUrl: text("demo_url"),
   featured: boolean("featured").default(false).notNull(),
+});
+
+export const profile = pgTable("profile", {
+  id: serial("id").primaryKey(),
+  aboutImageKey: text("about_image_key"),
+  aboutImageUrl: text("about_image_url"),
+  cvKey: text("cv_key"),
+  cvUrl: text("cv_url"),
+  bio: text("bio"),
 });
 
 export const skills = pgTable("skills", {
@@ -41,12 +51,16 @@ export const blogPosts = pgTable("blog_posts", {
 });
 
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true });
+export const insertProfileSchema = createInsertSchema(profile).omit({ id: true });
 export const insertSkillSchema = createInsertSchema(skills).omit({ id: true });
 export const insertCertificationSchema = createInsertSchema(certifications).omit({ id: true });
 export const insertBlogPostSchema = createInsertSchema(blogPosts).omit({ id: true });
 
 export type Project = typeof projects.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
+
+export type Profile = typeof profile.$inferSelect;
+export type InsertProfile = z.infer<typeof insertProfileSchema>;
 
 export type Skill = typeof skills.$inferSelect;
 export type InsertSkill = z.infer<typeof insertSkillSchema>;

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   projects,
+  profile,
   skills,
   certifications,
   blogPosts,
@@ -69,6 +70,15 @@ export const api = {
       responses: {
         200: z.custom<typeof blogPosts.$inferSelect>(),
         404: errorSchemas.notFound,
+      },
+    },
+  },
+  profile: {
+    get: {
+      method: 'GET' as const,
+      path: '/api/profile' as const,
+      responses: {
+        200: z.custom<typeof profile.$inferSelect>(),
       },
     },
   }

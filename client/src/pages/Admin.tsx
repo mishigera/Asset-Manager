@@ -30,8 +30,36 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { Project, Skill, Certification, BlogPost } from "@shared/schema";
+import type { Project, Skill, Certification, BlogPost, Profile } from "@shared/schema";
 import { Plus, Trash2 } from "lucide-react";
+
+type UploadKind = "image" | "cv";
+
+async function uploadAdminFile(file: File, expected: UploadKind) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await adminFetch("/api/admin/upload", {
+    method: "POST",
+    body: formData,
+  });
+
+  const payload = await res.json().catch(() => ({}));
+
+  if (!res.ok || payload?.ok !== true) {
+    throw new Error(payload?.message || "No se pudo subir el archivo");
+  }
+
+  if (payload.kind !== expected) {
+    throw new Error(
+      expected === "image"
+        ? "Debes subir una imagen válida"
+        : "Debes subir un PDF válido",
+    );
+  }
+
+  return payload as { ok: true; key: string; url: string; kind: UploadKind };
+}
 
 export default function Admin() {
   const queryClient = useQueryClient();
@@ -157,11 +185,12 @@ export default function Admin() {
       </header>
       <div className="container max-w-5xl py-6 px-4">
         <Tabs defaultValue="projects" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="projects">Proyectos</TabsTrigger>
             <TabsTrigger value="skills">Skills</TabsTrigger>
             <TabsTrigger value="certifications">Certificaciones</TabsTrigger>
             <TabsTrigger value="blog">Blog</TabsTrigger>
+            <TabsTrigger value="profile">Perfil</TabsTrigger>
           </TabsList>
 
           <TabsContent value="projects" className="space-y-4">
@@ -176,6 +205,9 @@ export default function Admin() {
           <TabsContent value="blog" className="space-y-4">
             <AdminBlog onMutate={invalidateAll} />
           </TabsContent>
+          <TabsContent value="profile" className="space-y-4">
+            <AdminProfile onMutate={invalidateAll} />
+          </TabsContent>
         </Tabs>
       </div>
     </div>
@@ -185,25 +217,49 @@ export default function Admin() {
 function AdminProjects({ onMutate }: { onMutate: () => void }) {
   const { data: items, isLoading } = useProjects();
   const [creating, setCreating] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [formError, setFormError] = useState("");
   const [form, setForm] = useState({
     slug: "",
     title: "",
     description: "",
     content: "",
     stack: "" as string,
+    imageKey: "",
     imageUrl: "",
     githubUrl: "",
     demoUrl: "",
     featured: false,
   });
 
-  const create = async () => {
+  const resetForm = () => {
+    setCreating(false);
+    setEditingId(null);
+    setFormError("");
+    setForm({
+      slug: "",
+      title: "",
+      description: "",
+      content: "",
+      stack: "",
+      imageKey: "",
+      imageUrl: "",
+      githubUrl: "",
+      demoUrl: "",
+      featured: false,
+    });
+  };
+
+  const save = async () => {
+    setFormError("");
     const stack = form.stack.split(",").map((s) => s.trim()).filter(Boolean);
-    const res = await adminFetch("/api/admin/projects", {
-      method: "POST",
+    const res = await adminFetch(editingId ? `/api/admin/projects/${editingId}` : "/api/admin/projects", {
+      method: editingId ? "PATCH" : "POST",
       body: JSON.stringify({
         ...form,
         stack,
+        imageKey: form.imageKey || null,
         imageUrl: form.imageUrl || null,
         githubUrl: form.githubUrl || null,
         demoUrl: form.demoUrl || null,
@@ -211,21 +267,49 @@ function AdminProjects({ onMutate }: { onMutate: () => void }) {
     });
     if (!res.ok) {
       const d = await res.json();
-      throw new Error(d.message || "Error al crear");
+      const message = d?.message || "Error al guardar proyecto";
+      setFormError(message);
+      throw new Error(message);
     }
     onMutate();
-    setCreating(false);
+    resetForm();
+  };
+
+  const edit = (project: Project) => {
+    setFormError("");
+    setCreating(true);
+    setEditingId(project.id);
     setForm({
-      slug: "",
-      title: "",
-      description: "",
-      content: "",
-      stack: "",
-      imageUrl: "",
-      githubUrl: "",
-      demoUrl: "",
-      featured: false,
+      slug: project.slug,
+      title: project.title,
+      description: project.description,
+      content: project.content,
+      stack: Array.isArray(project.stack) ? project.stack.join(", ") : "",
+      imageKey: project.imageKey || "",
+      imageUrl: project.imageUrl || "",
+      githubUrl: project.githubUrl || "",
+      demoUrl: project.demoUrl || "",
+      featured: !!project.featured,
     });
+  };
+
+  const handleImageSelected = async (file: File | null) => {
+    if (!file) return;
+    setUploadingImage(true);
+    setFormError("");
+
+    try {
+      const uploaded = await uploadAdminFile(file, "image");
+      setForm((prev) => ({
+        ...prev,
+        imageKey: uploaded.key,
+        imageUrl: uploaded.url,
+      }));
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "No se pudo subir la imagen");
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const remove = async (id: number) => {
@@ -244,7 +328,7 @@ function AdminProjects({ onMutate }: { onMutate: () => void }) {
         </div>
         <Button size="sm" onClick={() => setCreating(!creating)}>
           <Plus className="w-4 h-4 mr-2" />
-          Añadir
+          {creating ? "Cerrar" : "Añadir"}
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -257,6 +341,7 @@ function AdminProjects({ onMutate }: { onMutate: () => void }) {
                   value={form.slug}
                   onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
                   placeholder="mi-proyecto"
+                  disabled={editingId !== null}
                 />
               </div>
               <div className="space-y-1">
@@ -292,6 +377,25 @@ function AdminProjects({ onMutate }: { onMutate: () => void }) {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-1">
+                <Label>Subir imagen</Label>
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleImageSelected(e.target.files?.[0] || null)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Máximo 10MB. {uploadingImage ? "Subiendo..." : ""}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <Label>Image Key</Label>
+                <Input
+                  value={form.imageKey}
+                  onChange={(e) => setForm((f) => ({ ...f, imageKey: e.target.value }))}
+                  placeholder="uploads/images/..."
+                />
+              </div>
+              <div className="space-y-1">
                 <Label>Image URL</Label>
                 <Input
                   value={form.imageUrl}
@@ -299,6 +403,8 @@ function AdminProjects({ onMutate }: { onMutate: () => void }) {
                   placeholder="https://..."
                 />
               </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>GitHub URL</Label>
                 <Input
@@ -316,6 +422,7 @@ function AdminProjects({ onMutate }: { onMutate: () => void }) {
                 />
               </div>
             </div>
+            {formError && <p className="text-sm text-destructive">{formError}</p>}
             <div className="flex items-center gap-2">
               <Checkbox
                 id="featured-project"
@@ -327,10 +434,10 @@ function AdminProjects({ onMutate }: { onMutate: () => void }) {
               <Label htmlFor="featured-project">Proyecto destacado</Label>
             </div>
             <div className="flex gap-2">
-              <Button size="sm" onClick={create}>
-                Guardar
+              <Button size="sm" onClick={save} disabled={uploadingImage}>
+                {editingId ? "Actualizar" : "Guardar"}
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setCreating(false)}>
+              <Button size="sm" variant="outline" onClick={resetForm}>
                 Cancelar
               </Button>
             </div>
@@ -344,7 +451,7 @@ function AdminProjects({ onMutate }: { onMutate: () => void }) {
               <TableRow>
                 <TableHead>Slug</TableHead>
                 <TableHead>Título</TableHead>
-                <TableHead className="w-24"></TableHead>
+                <TableHead className="w-36"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -352,7 +459,14 @@ function AdminProjects({ onMutate }: { onMutate: () => void }) {
                 <TableRow key={p.id}>
                   <TableCell className="font-mono text-sm">{p.slug}</TableCell>
                   <TableCell>{p.title}</TableCell>
-                  <TableCell>
+                  <TableCell className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => edit(p)}
+                    >
+                      Editar
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -741,6 +855,214 @@ function AdminBlog({ onMutate }: { onMutate: () => void }) {
             </TableBody>
           </Table>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AdminProfile({ onMutate }: { onMutate: () => void }) {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingCv, setUploadingCv] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [form, setForm] = useState<Partial<Profile>>({
+    aboutImageKey: "",
+    aboutImageUrl: "",
+    cvKey: "",
+    cvUrl: "",
+    bio: "",
+  });
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await adminFetch("/api/admin/profile");
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.message || "No se pudo cargar el perfil");
+      }
+      setForm({
+        aboutImageKey: payload.aboutImageKey || "",
+        aboutImageUrl: payload.aboutImageUrl || "",
+        cvKey: payload.cvKey || "",
+        cvUrl: payload.cvUrl || "",
+        bio: payload.bio || "",
+      });
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "No se pudo cargar el perfil");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const uploadImage = async (file: File | null) => {
+    if (!file) return;
+    setUploadingImage(true);
+    setError("");
+    setSuccess("");
+    try {
+      const uploaded = await uploadAdminFile(file, "image");
+      setForm((prev) => ({
+        ...prev,
+        aboutImageKey: uploaded.key,
+        aboutImageUrl: uploaded.url,
+      }));
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "No se pudo subir la foto");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const uploadCv = async (file: File | null) => {
+    if (!file) return;
+    setUploadingCv(true);
+    setError("");
+    setSuccess("");
+    try {
+      const uploaded = await uploadAdminFile(file, "cv");
+      setForm((prev) => ({
+        ...prev,
+        cvKey: uploaded.key,
+        cvUrl: uploaded.url,
+      }));
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "No se pudo subir el CV");
+    } finally {
+      setUploadingCv(false);
+    }
+  };
+
+  const save = async () => {
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await adminFetch("/api/admin/profile", {
+        method: "PATCH",
+        body: JSON.stringify({
+          aboutImageKey: form.aboutImageKey || null,
+          aboutImageUrl: form.aboutImageUrl || null,
+          cvKey: form.cvKey || null,
+          cvUrl: form.cvUrl || null,
+          bio: form.bio || null,
+        }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.message || "No se pudo guardar el perfil");
+      }
+      setSuccess("Perfil actualizado");
+      onMutate();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "No se pudo guardar el perfil");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="py-6">
+          <p className="text-sm text-muted-foreground">Cargando perfil...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Perfil / About</CardTitle>
+        <CardDescription>Configura foto de perfil, CV y biografía.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid md:grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label>Subir foto</Label>
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={(e) => uploadImage(e.target.files?.[0] || null)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Máximo 10MB. {uploadingImage ? "Subiendo..." : ""}
+            </p>
+          </div>
+          <div className="space-y-1">
+            <Label>Subir CV (PDF)</Label>
+            <Input
+              type="file"
+              accept="application/pdf"
+              onChange={(e) => uploadCv(e.target.files?.[0] || null)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Máximo 20MB. {uploadingCv ? "Subiendo..." : ""}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label>aboutImageKey</Label>
+            <Input
+              value={form.aboutImageKey || ""}
+              onChange={(e) => setForm((prev) => ({ ...prev, aboutImageKey: e.target.value }))}
+              placeholder="uploads/images/..."
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>aboutImageUrl</Label>
+            <Input
+              value={form.aboutImageUrl || ""}
+              onChange={(e) => setForm((prev) => ({ ...prev, aboutImageUrl: e.target.value }))}
+              placeholder="https://s3..."
+            />
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label>cvKey</Label>
+            <Input
+              value={form.cvKey || ""}
+              onChange={(e) => setForm((prev) => ({ ...prev, cvKey: e.target.value }))}
+              placeholder="uploads/cv/..."
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>cvUrl</Label>
+            <Input
+              value={form.cvUrl || ""}
+              onChange={(e) => setForm((prev) => ({ ...prev, cvUrl: e.target.value }))}
+              placeholder="https://s3..."
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <Label>Bio</Label>
+          <Textarea
+            rows={5}
+            value={form.bio || ""}
+            onChange={(e) => setForm((prev) => ({ ...prev, bio: e.target.value }))}
+          />
+        </div>
+
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        {success && <p className="text-sm text-emerald-600">{success}</p>}
+
+        <Button onClick={save} disabled={saving || uploadingImage || uploadingCv}>
+          {saving ? "Guardando..." : "Guardar perfil"}
+        </Button>
       </CardContent>
     </Card>
   );
