@@ -151,6 +151,12 @@ export async function registerRoutes(
           }
 
           if (uploadError instanceof Error) {
+            if (uploadError.message.includes("Unexpected end of form")) {
+              return res.status(413).json({
+                message:
+                  "La subida se cortó antes de terminar (proxy/límite de body/timeout). Revisa Traefik maxRequestBodyBytes y timeouts.",
+              });
+            }
             return res.status(400).json({ message: `No se pudo procesar el archivo: ${uploadError.message}` });
           }
 

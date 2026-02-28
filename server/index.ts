@@ -5,6 +5,8 @@ import { createServer } from "http";
 
 const app = express();
 const httpServer = createServer(app);
+httpServer.requestTimeout = 5 * 60 * 1000;
+httpServer.headersTimeout = 6 * 60 * 1000;
 
 declare module "http" {
   interface IncomingMessage {
