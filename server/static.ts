@@ -12,8 +12,8 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath));
 
-  // SPA fallback: solo para GET y NUNCA para /api (así las peticiones API siempre reciben JSON)
-  app.get("*", (req, res) => {
+  // SPA fallback: solo GET, nunca /api (Express 5 exige wildcard con nombre: {*splat})
+  app.get("/{*splat}", (req, res) => {
     if (req.path.startsWith("/api")) {
       return res.status(404).json({ message: "Not found" });
     }
