@@ -4,6 +4,7 @@ import { MessageSquare, X, Send, Bot, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n";
+import { apiUrl } from "@/lib/apiBase";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 type ChatRole = "user" | "assistant";
@@ -99,7 +100,7 @@ export function Chatbot() {
     setIsTyping(true);
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch(apiUrl("/api/chat"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: historyWithUserMessage }),
@@ -184,7 +185,7 @@ export function Chatbot() {
 
     setIsSendingContact(true);
     try {
-      const response = await fetch("/api/contact", {
+      const response = await fetch(apiUrl("/api/contact"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
