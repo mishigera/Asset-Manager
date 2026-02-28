@@ -1,12 +1,6 @@
 import { useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  getAdminToken,
-  setAdminToken,
-  removeAdminToken,
-  adminLogin,
-  adminFetch,
-} from "@/lib/adminAuth";
+import { adminFetch } from "@/lib/adminAuth";
 import { useProjects } from "@/hooks/use-projects";
 import { useSkills, useCertifications } from "@/hooks/use-skills";
 import { useBlogPosts } from "@/hooks/use-blog";
@@ -30,98 +24,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { Project, Skill, Certification, BlogPost } from "@shared/schema";
-import { LogOut, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 export default function Admin() {
-  const [token, setTokenState] = useState<string | null>(() => getAdminToken());
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [loginError, setLoginError] = useState("");
-  const [loading, setLoading] = useState(false);
   const queryClient = useQueryClient();
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError("");
-    setLoading(true);
-    try {
-      const { token: t } = await adminLogin(username, password);
-      setAdminToken(t);
-      setTokenState(t);
-    } catch (err) {
-      setLoginError(err instanceof Error ? err.message : "Error al iniciar sesión");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLogout = () => {
-    removeAdminToken();
-    setTokenState(null);
-  };
-
   const invalidateAll = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["portfolio"] });
   }, [queryClient]);
 
-  if (!token) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
-        <Card className="w-full max-w-sm">
-          <CardHeader>
-            <CardTitle>Admin TFK</CardTitle>
-            <CardDescription>Inicia sesión para gestionar el contenido</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              {loginError && (
-                <Alert variant="destructive">
-                  <AlertTitle>Error</AlertTitle>
-                  <AlertDescription>{loginError}</AlertDescription>
-                </Alert>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="username">Usuario</Label>
-                <Input
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                  autoComplete="username"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Contraseña</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Entrando…" : "Entrar"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-muted/30">
-      <header className="border-b bg-background px-4 py-3 flex items-center justify-between">
+      <header className="border-b bg-background px-4 py-3">
         <h1 className="font-semibold text-lg">Panel Admin</h1>
-        <Button variant="outline" size="sm" onClick={handleLogout}>
-          <LogOut className="w-4 h-4 mr-2" />
-          Cerrar sesión
-        </Button>
+        <p className="text-sm text-muted-foreground">Gestiona proyectos, skills, certificaciones y blog.</p>
       </header>
       <div className="container max-w-5xl py-6 px-4">
         <Tabs defaultValue="projects" className="space-y-4">
