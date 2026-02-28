@@ -113,7 +113,6 @@ export async function uploadBufferToS3(params: {
       Body: body,
       ContentType: contentType,
       CacheControl: getCacheControl(kind),
-      ACL: "public-read",
     }),
   );
 
