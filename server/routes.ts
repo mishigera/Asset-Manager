@@ -9,11 +9,6 @@ import {
   insertBlogPostSchema,
 } from "@shared/schema";
 import { z } from "zod";
-import {
-  authMiddleware,
-  createToken,
-  validateAdminCredentials,
-} from "./auth";
 
 async function seedDatabase() {
   const existingProjects = await storage.getProjects();
@@ -158,28 +153,7 @@ export async function registerRoutes(
   });
   });
 
-  // --- Admin: login (sin auth)
-  const loginBody = z.object({ username: z.string(), password: z.string() });
-  app.post("/api/admin/login", async (req, res) => {
-    const parsed = loginBody.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ message: "Usuario y contraseña requeridos" });
-    }
-    const ok = await validateAdminCredentials(parsed.data.username, parsed.data.password);
-    if (!ok) {
-      return res.status(401).json({ message: "Credenciales incorrectas" });
-    }
-    try {
-      const token = createToken(parsed.data.username);
-      return res.json({ token });
-    } catch (e) {
-      return res.status(500).json({ message: "Error al generar token. Configura JWT_SECRET." });
-    }
-  });
-
-  // --- Admin: rutas protegidas (CRUD)
-  app.use("/api/admin", authMiddleware);
-
+  // --- Admin: CRUD sin login (protege la ruta /tfkadmin en Traefik si quieres)
   const idParam = (req: { params: { id: string } }) => parseInt(req.params.id, 10);
 
   // Projects
