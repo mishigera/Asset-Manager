@@ -37,6 +37,38 @@ function isContactIntent(text: string) {
   return CONTACT_KEYWORDS.some((keyword) => normalized.includes(keyword));
 }
 
+function normalizeShortText(text: string) {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[¿?¡!.,;:]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getShortGreetingReply(text: string): string | null {
+  const normalized = normalizeShortText(text);
+  const words = normalized.split(" ").filter(Boolean);
+
+  const shortGreetings = new Set([
+    "hola",
+    "buenas",
+    "buenos dias",
+    "buenas tardes",
+    "buenas noches",
+    "que tal",
+    "como estas",
+    "hola como estas",
+  ]);
+
+  if (shortGreetings.has(normalized) || (normalized === "hola" && words.length <= 2)) {
+    return "Bien, gracias. ¿Qué gustas saber del portafolio?";
+  }
+
+  return null;
+}
+
 export function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -153,6 +185,12 @@ export function Chatbot() {
         content:
           "Claro, compárteme tu nombre, correo y mensaje en el formulario para contactarte.",
       });
+      return;
+    }
+
+    const shortReply = getShortGreetingReply(text);
+    if (shortReply) {
+      appendMessage({ role: "assistant", content: shortReply });
       return;
     }
 
