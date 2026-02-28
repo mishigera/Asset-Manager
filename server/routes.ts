@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
@@ -208,7 +208,7 @@ export async function registerRoutes(
     "/api/admin/upload",
     authMiddleware,
     async (req, res) => {
-      uploadSingleFile(req, res, async (uploadError) => {
+      uploadSingleFile(req, res, (uploadError: unknown) => {
         if (uploadError) {
           if (uploadError instanceof MulterError && uploadError.code === "LIMIT_FILE_SIZE") {
             return res.status(400).json({ message: "Archivo demasiado grande" });
@@ -216,32 +216,34 @@ export async function registerRoutes(
           return res.status(400).json({ message: "No se pudo procesar el archivo" });
         }
 
-        try {
-          const file = req.file;
-          if (!file) {
-            return res.status(400).json({ message: "Archivo requerido en field 'file'" });
+        (async () => {
+          try {
+            const file = req.file;
+            if (!file) {
+              return res.status(400).json({ message: "Archivo requerido en field 'file'" });
+            }
+
+            const kind = validateUpload(file.mimetype, file.size);
+            const key = buildObjectKey(kind, file.originalname, file.mimetype);
+            const uploaded = await uploadBufferToS3({
+              key,
+              contentType: file.mimetype,
+              body: file.buffer,
+              kind,
+            });
+
+            return res.status(200).json({ ok: true, ...uploaded });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Error al subir archivo";
+            return res.status(400).json({ message });
           }
-
-          const kind = validateUpload(file.mimetype, file.size);
-          const key = buildObjectKey(kind, file.originalname, file.mimetype);
-          const uploaded = await uploadBufferToS3({
-            key,
-            contentType: file.mimetype,
-            body: file.buffer,
-            kind,
-          });
-
-          return res.status(200).json({ ok: true, ...uploaded });
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Error al subir archivo";
-          return res.status(400).json({ message });
-        }
+        })();
       });
     },
   );
 
   // --- Admin: CRUD con login
-  const idParam = (req: { params: { id: string } }) => parseInt(req.params.id, 10);
+  const idParam = (req: Request) => parseInt(String(req.params.id), 10);
 
   // Projects
   app.post("/api/admin/projects", authMiddleware, async (req, res) => {
