@@ -9,6 +9,11 @@ import {
   insertBlogPostSchema,
 } from "@shared/schema";
 import { z } from "zod";
+import {
+  authMiddleware,
+  createToken,
+  validateAdminCredentials,
+} from "./auth";
 
 async function seedDatabase() {
   const existingProjects = await storage.getProjects();
@@ -153,11 +158,37 @@ export async function registerRoutes(
   });
   });
 
-  // --- Admin: CRUD sin login (protege la ruta /tfkadmin en Traefik si quieres)
+  app.post("/api/admin/login", async (req, res) => {
+    const schema = z.object({
+      username: z.string().min(1),
+      password: z.string().min(1),
+    });
+
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Credenciales inválidas" });
+    }
+
+    const { username, password } = parsed.data;
+    const valid = await validateAdminCredentials(username, password);
+
+    if (!valid) {
+      return res.status(401).json({ message: "Usuario o contraseña incorrectos" });
+    }
+
+    const token = createToken(username);
+    return res.status(200).json({ token });
+  });
+
+  app.get("/api/admin/session", authMiddleware, (_req, res) => {
+    res.status(200).json({ ok: true });
+  });
+
+  // --- Admin: CRUD con login
   const idParam = (req: { params: { id: string } }) => parseInt(req.params.id, 10);
 
   // Projects
-  app.post("/api/admin/projects", async (req, res) => {
+  app.post("/api/admin/projects", authMiddleware, async (req, res) => {
     const parsed = insertProjectSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
@@ -166,7 +197,7 @@ export async function registerRoutes(
     const project = await storage.createProject(data);
     res.status(201).json(project);
   });
-  app.put("/api/admin/projects/:id", async (req, res) => {
+  app.put("/api/admin/projects/:id", authMiddleware, async (req, res) => {
     const id = idParam(req);
     if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido" });
     const parsed = insertProjectSchema.partial().safeParse(req.body);
@@ -180,7 +211,7 @@ export async function registerRoutes(
     if (!project) return res.status(404).json({ message: "Proyecto no encontrado" });
     res.json(project);
   });
-  app.delete("/api/admin/projects/:id", async (req, res) => {
+  app.delete("/api/admin/projects/:id", authMiddleware, async (req, res) => {
     const id = idParam(req);
     if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido" });
     const deleted = await storage.deleteProject(id);
@@ -189,7 +220,7 @@ export async function registerRoutes(
   });
 
   // Skills
-  app.post("/api/admin/skills", async (req, res) => {
+  app.post("/api/admin/skills", authMiddleware, async (req, res) => {
     const parsed = insertSkillSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
@@ -197,7 +228,7 @@ export async function registerRoutes(
     const skill = await storage.createSkill(parsed.data);
     res.status(201).json(skill);
   });
-  app.put("/api/admin/skills/:id", async (req, res) => {
+  app.put("/api/admin/skills/:id", authMiddleware, async (req, res) => {
     const id = idParam(req);
     if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido" });
     const parsed = insertSkillSchema.partial().safeParse(req.body);
@@ -208,7 +239,7 @@ export async function registerRoutes(
     if (!skill) return res.status(404).json({ message: "Skill no encontrado" });
     res.json(skill);
   });
-  app.delete("/api/admin/skills/:id", async (req, res) => {
+  app.delete("/api/admin/skills/:id", authMiddleware, async (req, res) => {
     const id = idParam(req);
     if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido" });
     const deleted = await storage.deleteSkill(id);
@@ -217,7 +248,7 @@ export async function registerRoutes(
   });
 
   // Certifications
-  app.post("/api/admin/certifications", async (req, res) => {
+  app.post("/api/admin/certifications", authMiddleware, async (req, res) => {
     const parsed = insertCertificationSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
@@ -225,7 +256,7 @@ export async function registerRoutes(
     const cert = await storage.createCertification(parsed.data);
     res.status(201).json(cert);
   });
-  app.put("/api/admin/certifications/:id", async (req, res) => {
+  app.put("/api/admin/certifications/:id", authMiddleware, async (req, res) => {
     const id = idParam(req);
     if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido" });
     const parsed = insertCertificationSchema.partial().safeParse(req.body);
@@ -236,7 +267,7 @@ export async function registerRoutes(
     if (!cert) return res.status(404).json({ message: "Certificación no encontrada" });
     res.json(cert);
   });
-  app.delete("/api/admin/certifications/:id", async (req, res) => {
+  app.delete("/api/admin/certifications/:id", authMiddleware, async (req, res) => {
     const id = idParam(req);
     if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido" });
     const deleted = await storage.deleteCertification(id);
@@ -245,7 +276,7 @@ export async function registerRoutes(
   });
 
   // Blog
-  app.post("/api/admin/blog", async (req, res) => {
+  app.post("/api/admin/blog", authMiddleware, async (req, res) => {
     const parsed = insertBlogPostSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
@@ -253,7 +284,7 @@ export async function registerRoutes(
     const post = await storage.createBlogPost(parsed.data);
     res.status(201).json(post);
   });
-  app.put("/api/admin/blog/:id", async (req, res) => {
+  app.put("/api/admin/blog/:id", authMiddleware, async (req, res) => {
     const id = idParam(req);
     if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido" });
     const parsed = insertBlogPostSchema.partial().safeParse(req.body);
@@ -264,7 +295,7 @@ export async function registerRoutes(
     if (!post) return res.status(404).json({ message: "Post no encontrado" });
     res.json(post);
   });
-  app.delete("/api/admin/blog/:id", async (req, res) => {
+  app.delete("/api/admin/blog/:id", authMiddleware, async (req, res) => {
     const id = idParam(req);
     if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido" });
     const deleted = await storage.deleteBlogPost(id);

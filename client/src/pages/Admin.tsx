@@ -1,6 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { adminFetch } from "@/lib/adminAuth";
+import {
+  adminFetch,
+  adminLogin,
+  checkAdminSession,
+  clearAdminToken,
+} from "@/lib/adminAuth";
 import { useProjects } from "@/hooks/use-projects";
 import { useSkills, useCertifications } from "@/hooks/use-skills";
 import { useBlogPosts } from "@/hooks/use-blog";
@@ -15,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -29,15 +35,125 @@ import { Plus, Trash2 } from "lucide-react";
 
 export default function Admin() {
   const queryClient = useQueryClient();
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState("");
+  const [credentials, setCredentials] = useState({ username: "", password: "" });
+
+  useEffect(() => {
+    let mounted = true;
+
+    const validate = async () => {
+      const valid = await checkAdminSession();
+      if (!mounted) return;
+      setIsLoggedIn(valid);
+      setIsCheckingAuth(false);
+    };
+
+    validate();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const invalidateAll = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["portfolio"] });
   }, [queryClient]);
 
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!credentials.username.trim() || !credentials.password.trim()) {
+      setLoginError("Completa usuario y contraseña.");
+      return;
+    }
+
+    setIsLoggingIn(true);
+    setLoginError("");
+
+    try {
+      await adminLogin(credentials.username.trim(), credentials.password);
+      setIsLoggedIn(true);
+      setCredentials({ username: "", password: "" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo iniciar sesión";
+      setLoginError(message);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = () => {
+    clearAdminToken();
+    setIsLoggedIn(false);
+    setCredentials({ username: "", password: "" });
+  };
+
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-muted/30 px-4">
+        <p className="text-sm text-muted-foreground">Verificando sesión…</p>
+      </div>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-muted/30 px-4">
+        <Card className="w-full max-w-sm">
+          <CardHeader>
+            <CardTitle>Acceso Admin</CardTitle>
+            <CardDescription>Inicia sesión para gestionar el contenido.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-1">
+                <Label htmlFor="admin-username">Usuario</Label>
+                <Input
+                  id="admin-username"
+                  value={credentials.username}
+                  onChange={(e) =>
+                    setCredentials((prev) => ({ ...prev, username: e.target.value }))
+                  }
+                  autoComplete="username"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="admin-password">Contraseña</Label>
+                <Input
+                  id="admin-password"
+                  type="password"
+                  value={credentials.password}
+                  onChange={(e) =>
+                    setCredentials((prev) => ({ ...prev, password: e.target.value }))
+                  }
+                  autoComplete="current-password"
+                />
+              </div>
+              {loginError && (
+                <p className="text-sm text-destructive">{loginError}</p>
+              )}
+              <Button type="submit" className="w-full" disabled={isLoggingIn}>
+                {isLoggingIn ? "Ingresando…" : "Ingresar"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-muted/30">
-      <header className="border-b bg-background px-4 py-3">
-        <h1 className="font-semibold text-lg">Panel Admin</h1>
-        <p className="text-sm text-muted-foreground">Gestiona proyectos, skills, certificaciones y blog.</p>
+      <header className="border-b bg-background px-4 py-3 flex items-center justify-between gap-3">
+        <div>
+          <h1 className="font-semibold text-lg">Panel Admin</h1>
+          <p className="text-sm text-muted-foreground">Gestiona proyectos, skills, certificaciones y blog.</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleLogout}>
+          Cerrar sesión
+        </Button>
       </header>
       <div className="container max-w-5xl py-6 px-4">
         <Tabs defaultValue="projects" className="space-y-4">
@@ -173,6 +289,42 @@ function AdminProjects({ onMutate }: { onMutate: () => void }) {
                 onChange={(e) => setForm((f) => ({ ...f, stack: e.target.value }))}
                 placeholder="React, TypeScript"
               />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label>Image URL</Label>
+                <Input
+                  value={form.imageUrl}
+                  onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
+                  placeholder="https://..."
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>GitHub URL</Label>
+                <Input
+                  value={form.githubUrl}
+                  onChange={(e) => setForm((f) => ({ ...f, githubUrl: e.target.value }))}
+                  placeholder="https://github.com/..."
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Demo URL</Label>
+                <Input
+                  value={form.demoUrl}
+                  onChange={(e) => setForm((f) => ({ ...f, demoUrl: e.target.value }))}
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="featured-project"
+                checked={form.featured}
+                onCheckedChange={(checked) =>
+                  setForm((f) => ({ ...f, featured: checked === true }))
+                }
+              />
+              <Label htmlFor="featured-project">Proyecto destacado</Label>
             </div>
             <div className="flex gap-2">
               <Button size="sm" onClick={create}>
