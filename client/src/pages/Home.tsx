@@ -25,6 +25,14 @@ const itemVariants = {
 export default function Home() {
   const { t } = useI18n();
   const { data: projects, isLoading: projectsLoading } = useProjects();
+
+  const openChatbot = () => {
+    window.dispatchEvent(
+      new CustomEvent("portfolio:open-chatbot", {
+        detail: { showQuickOptions: true },
+      }),
+    );
+  };
   
   const featuredProjects = projects?.filter(p => p.featured).slice(0, 3) || [];
 
@@ -59,7 +67,11 @@ export default function Home() {
             </motion.p>
             
             <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-4 w-full justify-center">
-              <Button size="lg" className="rounded-full h-12 px-8 shadow-lg shadow-primary/20 group">
+              <Button
+                size="lg"
+                className="rounded-full h-12 px-8 shadow-lg shadow-primary/20 group"
+                onClick={openChatbot}
+              >
                 {t("hero.cta")}
                 <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
               </Button>

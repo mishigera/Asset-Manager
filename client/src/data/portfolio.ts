@@ -9,6 +9,7 @@ export const portfolioProjects: Project[] = [
     content:
       "## Resumen\n\nProyecto de ejemplo para mostrar arquitectura frontend y backend desacoplada.\n\n## Alcance\n\n- Gestión básica de contenido\n- Panel administrativo\n- Diseño responsive",
     stack: ["React", "TypeScript", "Node.js"],
+    imageKey: null,
     imageUrl: null,
     githubUrl: null,
     demoUrl: null,
@@ -22,6 +23,7 @@ export const portfolioProjects: Project[] = [
     content:
       "## Resumen\n\nDashboard de ejemplo para monitoreo de indicadores en tiempo real.\n\n## Funcionalidades\n\n- Visualización de métricas\n- Filtros básicos\n- Reportes resumidos",
     stack: ["React", "Tailwind", "PostgreSQL"],
+    imageKey: null,
     imageUrl: null,
     githubUrl: null,
     demoUrl: null,
@@ -35,6 +37,7 @@ export const portfolioProjects: Project[] = [
     content:
       "## Resumen\n\nImplementación de sitio web de ejemplo orientado a performance y mantenibilidad.\n\n## Incluye\n\n- Secciones dinámicas\n- SEO técnico base\n- Componentes reutilizables",
     stack: ["Vite", "TypeScript", "CSS"],
+    imageKey: null,
     imageUrl: null,
     githubUrl: null,
     demoUrl: null,

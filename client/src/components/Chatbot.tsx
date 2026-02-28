@@ -19,6 +19,10 @@ interface ContactForm {
   message: string;
 }
 
+interface OpenChatbotDetail {
+  showQuickOptions?: boolean;
+}
+
 const HISTORY_KEY = "portfolio_chat_history";
 const CONTACT_KEYWORDS = [
   "contacto",
@@ -71,6 +75,7 @@ function getShortGreetingReply(text: string): string | null {
 
 export function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
+  const [showQuickOptions, setShowQuickOptions] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -105,6 +110,20 @@ export function Chatbot() {
   }, []);
 
   useEffect(() => {
+    const onOpenChatbot = (event: Event) => {
+      const customEvent = event as CustomEvent<OpenChatbotDetail>;
+      setIsOpen(true);
+      setShowQuickOptions(customEvent.detail?.showQuickOptions === true);
+    };
+
+    window.addEventListener("portfolio:open-chatbot", onOpenChatbot as EventListener);
+
+    return () => {
+      window.removeEventListener("portfolio:open-chatbot", onOpenChatbot as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
     try {
       localStorage.setItem(
         HISTORY_KEY,
@@ -126,6 +145,40 @@ export function Chatbot() {
 
   const appendMessage = (message: ChatMessage) => {
     setMessages((prev) => [...prev, message]);
+  };
+
+  const handleQuickOption = (option: "projects" | "skills" | "certifications" | "contact") => {
+    setShowQuickOptions(false);
+
+    if (option === "contact") {
+      setContactMode(true);
+      appendMessage({
+        role: "assistant",
+        content: "Perfecto. Completa tu nombre, correo y mensaje para que pueda responderte.",
+      });
+      return;
+    }
+
+    if (option === "projects") {
+      appendMessage({
+        role: "assistant",
+        content: "Puedes explorar proyectos en la sección Proyectos. Si quieres, también te recomiendo los destacados primero.",
+      });
+      return;
+    }
+
+    if (option === "skills") {
+      appendMessage({
+        role: "assistant",
+        content: "En Skills verás frontend, backend e integración de IA. Dime si te interesa algún stack en específico.",
+      });
+      return;
+    }
+
+    appendMessage({
+      role: "assistant",
+      content: "En Certificaciones puedes revisar credenciales y formación reciente.",
+    });
   };
 
   const sendChatRequest = async (historyWithUserMessage: ChatMessage[]) => {
@@ -176,6 +229,7 @@ export function Chatbot() {
 
     appendMessage(userMessage);
     setInput("");
+    setShowQuickOptions(false);
 
     if (isContactIntent(text)) {
       setContactMode(true);
@@ -411,9 +465,29 @@ export function Chatbot() {
                         className="w-full h-9"
                         disabled={isSendingContact}
                       >
-                        {isSendingContact ? "Enviando..." : "Enviar contacto"}
+                        {isSendingContact ? "Enviando..." : "Enviar mensaje"}
                       </Button>
                     </form>
+                  </div>
+                )}
+
+                {showQuickOptions && (
+                  <div className="bg-muted/30 border border-border/60 rounded-xl p-3">
+                    <p className="text-xs text-muted-foreground mb-2">Opciones rápidas</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button size="sm" variant="outline" onClick={() => handleQuickOption("projects")}>
+                        Proyectos
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => handleQuickOption("skills")}>
+                        Skills
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => handleQuickOption("certifications")}>
+                        Certificaciones
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => handleQuickOption("contact")}>
+                        Contacto
+                      </Button>
+                    </div>
                   </div>
                 )}
                 <div ref={bottomRef} />

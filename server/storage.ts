@@ -1,7 +1,8 @@
 import { db } from "./db";
 import {
-  projects, skills, certifications, blogPosts,
+  projects, profile, skills, certifications, blogPosts,
   type Project, type InsertProject,
+  type Profile, type InsertProfile,
   type Skill, type InsertSkill,
   type Certification, type InsertCertification,
   type BlogPost, type InsertBlogPost
@@ -12,6 +13,7 @@ export interface IStorage {
   getProjects(): Promise<Project[]>;
   getProject(slug: string): Promise<Project | undefined>;
   getProjectById(id: number): Promise<Project | undefined>;
+  getProfile(): Promise<Profile>;
   getSkills(): Promise<Skill[]>;
   getSkillById(id: number): Promise<Skill | undefined>;
   getCertifications(): Promise<Certification[]>;
@@ -21,6 +23,7 @@ export interface IStorage {
   getBlogPostById(id: number): Promise<BlogPost | undefined>;
 
   createProject(project: InsertProject): Promise<Project>;
+  upsertProfile(data: Partial<InsertProfile>): Promise<Profile>;
   createSkill(skill: InsertSkill): Promise<Skill>;
   createCertification(cert: InsertCertification): Promise<Certification>;
   createBlogPost(post: InsertBlogPost): Promise<BlogPost>;
@@ -49,6 +52,14 @@ export class DatabaseStorage implements IStorage {
   async getProjectById(id: number): Promise<Project | undefined> {
     const [project] = await db.select().from(projects).where(eq(projects.id, id));
     return project;
+  }
+
+  async getProfile(): Promise<Profile> {
+    const [existing] = await db.select().from(profile).where(eq(profile.id, 1));
+    if (existing) return existing;
+
+    const [created] = await db.insert(profile).values({ id: 1 }).returning();
+    return created;
   }
 
   async getSkills(): Promise<Skill[]> {
@@ -87,6 +98,16 @@ export class DatabaseStorage implements IStorage {
     const p = { ...project, stack: [...(project.stack || [])] };
     const [result] = await db.insert(projects).values(p).returning();
     return result;
+  }
+
+  async upsertProfile(data: Partial<InsertProfile>): Promise<Profile> {
+    await this.getProfile();
+    const [updated] = await db
+      .update(profile)
+      .set(data)
+      .where(eq(profile.id, 1))
+      .returning();
+    return updated;
   }
 
   async createSkill(skill: InsertSkill): Promise<Skill> {

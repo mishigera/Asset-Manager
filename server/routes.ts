@@ -1,19 +1,27 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import {
   insertProjectSchema,
+  insertProfileSchema,
   insertSkillSchema,
   insertCertificationSchema,
   insertBlogPostSchema,
 } from "@shared/schema";
 import { z } from "zod";
+import multer, { MulterError } from "multer";
 import {
   authMiddleware,
   createToken,
   validateAdminCredentials,
 } from "./auth";
+import {
+  buildObjectKey,
+  uploadBufferToS3,
+  uploadLimits,
+  validateUpload,
+} from "./s3";
 
 async function seedDatabase() {
   const existingProjects = await storage.getProjects();
@@ -92,6 +100,13 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: uploadLimits.maxAnyBytes,
+    },
+  });
+  const uploadSingleFile = upload.single("file");
 
   // Seed DB silently in background
   seedDatabase().catch(console.error);
@@ -125,6 +140,11 @@ export async function registerRoutes(
   app.get(api.blog.get.path, async (req, res) => {
     const item = await storage.getBlogPost(req.params.slug);
     if (!item) return res.status(404).json({ message: "Post not found" });
+    res.json(item);
+  });
+
+  app.get("/api/profile", async (_req, res) => {
+    const item = await storage.getProfile();
     res.json(item);
   });
 
@@ -184,8 +204,46 @@ export async function registerRoutes(
     res.status(200).json({ ok: true });
   });
 
+  app.post(
+    "/api/admin/upload",
+    authMiddleware,
+    async (req, res) => {
+      uploadSingleFile(req, res, (uploadError: unknown) => {
+        if (uploadError) {
+          if (uploadError instanceof MulterError && uploadError.code === "LIMIT_FILE_SIZE") {
+            return res.status(400).json({ message: "Archivo demasiado grande" });
+          }
+          return res.status(400).json({ message: "No se pudo procesar el archivo" });
+        }
+
+        (async () => {
+          try {
+            const file = req.file;
+            if (!file) {
+              return res.status(400).json({ message: "Archivo requerido en field 'file'" });
+            }
+
+            const kind = validateUpload(file.mimetype, file.size);
+            const key = buildObjectKey(kind, file.originalname, file.mimetype);
+            const uploaded = await uploadBufferToS3({
+              key,
+              contentType: file.mimetype,
+              body: file.buffer,
+              kind,
+            });
+
+            return res.status(200).json({ ok: true, ...uploaded });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Error al subir archivo";
+            return res.status(400).json({ message });
+          }
+        })();
+      });
+    },
+  );
+
   // --- Admin: CRUD con login
-  const idParam = (req: { params: { id: string } }) => parseInt(req.params.id, 10);
+  const idParam = (req: Request) => parseInt(String(req.params.id), 10);
 
   // Projects
   app.post("/api/admin/projects", authMiddleware, async (req, res) => {
@@ -211,12 +269,41 @@ export async function registerRoutes(
     if (!project) return res.status(404).json({ message: "Proyecto no encontrado" });
     res.json(project);
   });
+  app.patch("/api/admin/projects/:id", authMiddleware, async (req, res) => {
+    const id = idParam(req);
+    if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido" });
+    const parsed = insertProjectSchema.partial().safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
+    }
+    const data = parsed.data.stack != null
+      ? { ...parsed.data, stack: [...parsed.data.stack] }
+      : parsed.data;
+    const project = await storage.updateProject(id, data);
+    if (!project) return res.status(404).json({ message: "Proyecto no encontrado" });
+    res.json(project);
+  });
   app.delete("/api/admin/projects/:id", authMiddleware, async (req, res) => {
     const id = idParam(req);
     if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido" });
     const deleted = await storage.deleteProject(id);
     if (!deleted) return res.status(404).json({ message: "Proyecto no encontrado" });
     res.status(204).send();
+  });
+
+  app.get("/api/admin/profile", authMiddleware, async (_req, res) => {
+    const item = await storage.getProfile();
+    res.json(item);
+  });
+
+  app.patch("/api/admin/profile", authMiddleware, async (req, res) => {
+    const parsed = insertProfileSchema.partial().safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
+    }
+
+    const updated = await storage.upsertProfile(parsed.data);
+    res.json(updated);
   });
 
   // Skills

@@ -57,12 +57,20 @@ export async function adminFetch(
   options: RequestInit = {}
 ): Promise<Response> {
   const token = getAdminToken();
+  const isFormData = options.body instanceof FormData;
+
+  const baseHeaders: Record<string, string> = {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
+  if (!isFormData) {
+    baseHeaders["Content-Type"] = "application/json";
+  }
 
   return fetch(apiUrl(path), {
     ...options,
     headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...baseHeaders,
       ...options.headers,
     },
   });
