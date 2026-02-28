@@ -11,6 +11,7 @@ import ProjectDetail from "@/pages/ProjectDetail";
 import About from "@/pages/About";
 import Blog from "@/pages/Blog";
 import BlogDetail from "@/pages/BlogDetail";
+import Admin from "@/pages/Admin";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/about" component={About} />
       <Route path="/blog" component={Blog} />
       <Route path="/blog/:slug" component={BlogDetail} />
+      <Route path="/tfkadmin" component={Admin} />
       <Route component={NotFound} />
     </Switch>
   );

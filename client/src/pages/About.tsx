@@ -29,10 +29,10 @@ export default function About() {
 
             <div className="prose prose-lg dark:prose-invert max-w-none text-muted-foreground leading-relaxed">
               <p>
-                Inicié mi viaje en el desarrollo construyendo pequeños scripts y automatizaciones. Hoy en día, construyo aplicaciones complejas de pila completa que sirven a miles de usuarios.
+                Inicié mi viaje en el desarrollo construyendo pequeños scripts y automatizaciones. Hoy en día, he construido aplicaciones complejas de pila completa que sirven a miles de usuarios.
               </p>
               <p>
-                Me especializo en el ecosistema de TypeScript: React en el frontend y Node.js/PostgreSQL en el backend. Sin embargo, me considero agnóstico a la tecnología; elijo la herramienta adecuada para el trabajo adecuado.
+                Me especializo en el ecosistema de TypeScript:  React en el frontend y Node.js/PostgreSQL en el backend. o el stack MEAN (Mongo express Angular Node). Sin embargo, me considero agnóstico a la tecnología; elijo la herramienta adecuada para el trabajo adecuado.
               </p>
             </div>
 
@@ -59,7 +59,7 @@ export default function About() {
                 <div>
                   <div className="font-medium mb-2">Modelos</div>
                   <div className="flex flex-wrap gap-2">
-                    {['GPT-4o', 'Claude 3.5 Sonnet', 'Llama 3', 'Mistral'].map(s => (
+                    {['GPT-5o nano', 'Claude 3.5 Sonnet', 'Llama 3', 'Tinyllama'].map(s => (
                       <span key={s} className="px-3 py-1 bg-background border border-border rounded-full text-sm">{s}</span>
                     ))}
                   </div>

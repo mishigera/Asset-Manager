@@ -2,7 +2,18 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
+import {
+  insertProjectSchema,
+  insertSkillSchema,
+  insertCertificationSchema,
+  insertBlogPostSchema,
+} from "@shared/schema";
 import { z } from "zod";
+import {
+  authMiddleware,
+  createToken,
+  validateAdminCredentials,
+} from "./auth";
 
 async function seedDatabase() {
   const existingProjects = await storage.getProjects();
@@ -141,10 +152,150 @@ export async function registerRoutes(
       }
     }, 50);
 
-    req.on('close', () => {
-      clearInterval(interval);
-      res.end();
-    });
+  req.on('close', () => {
+    clearInterval(interval);
+    res.end();
+  });
+  });
+
+  // --- Admin: login (sin auth)
+  const loginBody = z.object({ username: z.string(), password: z.string() });
+  app.post("/api/admin/login", async (req, res) => {
+    const parsed = loginBody.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Usuario y contraseña requeridos" });
+    }
+    const ok = await validateAdminCredentials(parsed.data.username, parsed.data.password);
+    if (!ok) {
+      return res.status(401).json({ message: "Credenciales incorrectas" });
+    }
+    try {
+      const token = createToken(parsed.data.username);
+      return res.json({ token });
+    } catch (e) {
+      return res.status(500).json({ message: "Error al generar token. Configura JWT_SECRET." });
+    }
+  });
+
+  // --- Admin: rutas protegidas (CRUD)
+  app.use("/api/admin", authMiddleware);
+
+  const idParam = (req: { params: { id: string } }) => parseInt(req.params.id, 10);
+
+  // Projects
+  app.post("/api/admin/projects", async (req, res) => {
+    const parsed = insertProjectSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
+    }
+    const data = { ...parsed.data, stack: [...(parsed.data.stack || [])] };
+    const project = await storage.createProject(data);
+    res.status(201).json(project);
+  });
+  app.put("/api/admin/projects/:id", async (req, res) => {
+    const id = idParam(req);
+    if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido" });
+    const parsed = insertProjectSchema.partial().safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
+    }
+    const data = parsed.data.stack != null
+      ? { ...parsed.data, stack: [...parsed.data.stack] }
+      : parsed.data;
+    const project = await storage.updateProject(id, data);
+    if (!project) return res.status(404).json({ message: "Proyecto no encontrado" });
+    res.json(project);
+  });
+  app.delete("/api/admin/projects/:id", async (req, res) => {
+    const id = idParam(req);
+    if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido" });
+    const deleted = await storage.deleteProject(id);
+    if (!deleted) return res.status(404).json({ message: "Proyecto no encontrado" });
+    res.status(204).send();
+  });
+
+  // Skills
+  app.post("/api/admin/skills", async (req, res) => {
+    const parsed = insertSkillSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
+    }
+    const skill = await storage.createSkill(parsed.data);
+    res.status(201).json(skill);
+  });
+  app.put("/api/admin/skills/:id", async (req, res) => {
+    const id = idParam(req);
+    if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido" });
+    const parsed = insertSkillSchema.partial().safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
+    }
+    const skill = await storage.updateSkill(id, parsed.data);
+    if (!skill) return res.status(404).json({ message: "Skill no encontrado" });
+    res.json(skill);
+  });
+  app.delete("/api/admin/skills/:id", async (req, res) => {
+    const id = idParam(req);
+    if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido" });
+    const deleted = await storage.deleteSkill(id);
+    if (!deleted) return res.status(404).json({ message: "Skill no encontrado" });
+    res.status(204).send();
+  });
+
+  // Certifications
+  app.post("/api/admin/certifications", async (req, res) => {
+    const parsed = insertCertificationSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
+    }
+    const cert = await storage.createCertification(parsed.data);
+    res.status(201).json(cert);
+  });
+  app.put("/api/admin/certifications/:id", async (req, res) => {
+    const id = idParam(req);
+    if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido" });
+    const parsed = insertCertificationSchema.partial().safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
+    }
+    const cert = await storage.updateCertification(id, parsed.data);
+    if (!cert) return res.status(404).json({ message: "Certificación no encontrada" });
+    res.json(cert);
+  });
+  app.delete("/api/admin/certifications/:id", async (req, res) => {
+    const id = idParam(req);
+    if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido" });
+    const deleted = await storage.deleteCertification(id);
+    if (!deleted) return res.status(404).json({ message: "Certificación no encontrada" });
+    res.status(204).send();
+  });
+
+  // Blog
+  app.post("/api/admin/blog", async (req, res) => {
+    const parsed = insertBlogPostSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
+    }
+    const post = await storage.createBlogPost(parsed.data);
+    res.status(201).json(post);
+  });
+  app.put("/api/admin/blog/:id", async (req, res) => {
+    const id = idParam(req);
+    if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido" });
+    const parsed = insertBlogPostSchema.partial().safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
+    }
+    const post = await storage.updateBlogPost(id, parsed.data);
+    if (!post) return res.status(404).json({ message: "Post no encontrado" });
+    res.json(post);
+  });
+  app.delete("/api/admin/blog/:id", async (req, res) => {
+    const id = idParam(req);
+    if (Number.isNaN(id)) return res.status(400).json({ message: "ID inválido" });
+    const deleted = await storage.deleteBlogPost(id);
+    if (!deleted) return res.status(404).json({ message: "Post no encontrado" });
+    res.status(204).send();
   });
 
   return httpServer;

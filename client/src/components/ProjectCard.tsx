@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { ArrowRight, Github } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Project } from "@shared/schema";
 import { useI18n } from "@/lib/i18n";
