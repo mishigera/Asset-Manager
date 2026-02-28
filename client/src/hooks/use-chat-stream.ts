@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { streams } from "@shared/routes";
+import { apiUrl } from "@/lib/apiBase";
 
 export interface Message {
   id: string;
@@ -22,7 +23,7 @@ export function useChatStream() {
     setMessages((prev) => [...prev, { id: assistantMessageId, role: "assistant", content: "" }]);
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch(apiUrl("/api/chat"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text }),

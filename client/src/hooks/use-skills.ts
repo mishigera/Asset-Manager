@@ -1,11 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import type { Certification, Skill } from "@shared/schema";
 import { api, buildUrl } from "@shared/routes";
-
-const API_BASE = "";
+import { apiUrl } from "@/lib/apiBase";
 
 async function fetchApi<T>(path: string): Promise<T> {
-  const res = await fetch(path.startsWith("http") ? path : `${API_BASE}${path}`);
+  const res = await fetch(apiUrl(path));
   if (!res.ok) {
     throw new Error("No se pudieron cargar los datos");
   }
