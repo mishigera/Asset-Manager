@@ -131,7 +131,14 @@ export async function registerRoutes(
   app.get("/api/admin/session", authMiddleware, (_req, res) => {
     res.status(200).json({ ok: true });
   });
-
+console.log("S3 DEBUG", {
+  endpoint: process.env.S3_ENDPOINT,
+  region: process.env.S3_REGION,
+  bucket: process.env.S3_BUCKET,
+  accessLen: process.env.S3_ACCESS_KEY?.length,
+  secretLen: process.env.S3_SECRET_KEY?.length,
+  publicBase: process.env.S3_PUBLIC_BASE_URL,
+});
   app.post(
     "/api/admin/upload",
     authMiddleware,
