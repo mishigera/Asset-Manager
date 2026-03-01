@@ -1,4 +1,4 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { Client as MinioClient } from "minio";
 import { randomUUID } from "crypto";
 
 export type UploadKind = "image" | "cv";
@@ -21,8 +21,8 @@ function requiredEnv(name: string): string {
   return value;
 }
 
+// S3_ENDPOINT puede venir como http://minio:9000 o http://172.25.0.4:9000
 const s3Endpoint = requiredEnv("S3_ENDPOINT");
-const s3Region = process.env.S3_REGION || "us-east-1";
 const s3Bucket = requiredEnv("S3_BUCKET");
 const s3AccessKey = requiredEnv("S3_ACCESS_KEY");
 const s3SecretKey = requiredEnv("S3_SECRET_KEY");
@@ -37,14 +37,21 @@ export const uploadLimits = {
   maxAnyBytes: Math.max(maxImageBytes, maxCvBytes),
 };
 
-const s3 = new S3Client({
-  region: s3Region,
-  endpoint: s3Endpoint,
-  forcePathStyle: true,
-  credentials: {
-    accessKeyId: s3AccessKey,
-    secretAccessKey: s3SecretKey,
-  },
+function parseEndpoint(urlStr: string): { endPoint: string; port: number; useSSL: boolean } {
+  const u = new URL(urlStr);
+  const useSSL = u.protocol === "https:";
+  const port = u.port ? Number(u.port) : useSSL ? 443 : 80;
+  return { endPoint: u.hostname, port, useSSL };
+}
+
+const { endPoint, port, useSSL } = parseEndpoint(s3Endpoint);
+
+const minio = new MinioClient({
+  endPoint,
+  port,
+  useSSL,
+  accessKey: s3AccessKey,
+  secretKey: s3SecretKey,
 });
 
 function sanitizeExt(ext: string): string {
@@ -92,9 +99,7 @@ export function buildObjectKey(kind: UploadKind, originalName: string, mimeType:
 }
 
 function getCacheControl(kind: UploadKind): string {
-  if (kind === "cv") {
-    return "public, max-age=3600";
-  }
+  if (kind === "cv") return "public, max-age=3600";
   return "public, max-age=31536000, immutable";
 }
 
@@ -106,15 +111,10 @@ export async function uploadBufferToS3(params: {
 }): Promise<{ key: string; url: string; kind: UploadKind }> {
   const { key, contentType, body, kind } = params;
 
-  await s3.send(
-    new PutObjectCommand({
-      Bucket: s3Bucket,
-      Key: key,
-      Body: body,
-      ContentType: contentType,
-      CacheControl: getCacheControl(kind),
-    }),
-  );
+  await minio.putObject(s3Bucket, key, body, body.length, {
+    "Content-Type": contentType,
+    "Cache-Control": getCacheControl(kind),
+  });
 
   return {
     key,
