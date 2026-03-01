@@ -38,7 +38,7 @@ export async function registerRoutes(
   const uploadAnyFile = upload.any();
 
 
-  
+
   app.get(api.projects.list.path, async (req, res) => {
     const items = await storage.getProjects();
     res.json(items);
@@ -100,10 +100,10 @@ export async function registerRoutes(
       }
     }, 50);
 
-  req.on('close', () => {
-    clearInterval(interval);
-    res.end();
-  });
+    req.on('close', () => {
+      clearInterval(interval);
+      res.end();
+    });
   });
 
   app.post("/api/admin/login", async (req, res) => {
@@ -182,7 +182,15 @@ export async function registerRoutes(
 
             return res.status(200).json({ ok: true, ...uploaded });
           } catch (error) {
-            const message = error instanceof Error ? error.message : "Error al subir archivo";
+            console.error("UPLOAD ERROR:", error);
+
+            const message =
+              (error as any)?.message ||
+              (error as any)?.Code ||
+              (error as any)?.code ||
+              (error as any)?.name ||
+              (typeof error === "string" ? error : JSON.stringify(error));
+
             return res.status(400).json({ message });
           }
         })();
