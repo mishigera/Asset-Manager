@@ -5,10 +5,12 @@ import { useI18n } from "@/lib/i18n";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
+import { useBlogAnalytics } from "@/hooks/use-blog-analytics";
 
 export default function Blog() {
   const { t } = useI18n();
   const { data: posts, isLoading } = useBlogPosts();
+  useBlogAnalytics({ blogSlug: null });
 
   return (
     <Layout>
