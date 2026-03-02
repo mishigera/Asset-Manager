@@ -30,7 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { Project, Skill, Certification, BlogPost, Profile } from "@shared/schema";
+import type { Project, Skill, Certification, BlogPost, Profile, BlogVisit } from "@shared/schema";
 import { Plus, Trash2 } from "lucide-react";
 
 type UploadKind = "image" | "cv";
@@ -185,12 +185,13 @@ export default function Admin() {
       </header>
       <div className="container max-w-5xl py-6 px-4">
         <Tabs defaultValue="projects" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="projects">Proyectos</TabsTrigger>
             <TabsTrigger value="skills">Skills</TabsTrigger>
             <TabsTrigger value="certifications">Certificaciones</TabsTrigger>
             <TabsTrigger value="blog">Blog</TabsTrigger>
             <TabsTrigger value="profile">Perfil</TabsTrigger>
+            <TabsTrigger value="blog-visits">Visitas Blog</TabsTrigger>
           </TabsList>
 
           <TabsContent value="projects" className="space-y-4">
@@ -207,6 +208,9 @@ export default function Admin() {
           </TabsContent>
           <TabsContent value="profile" className="space-y-4">
             <AdminProfile onMutate={invalidateAll} />
+          </TabsContent>
+          <TabsContent value="blog-visits" className="space-y-4">
+            <AdminBlogVisits />
           </TabsContent>
         </Tabs>
       </div>
@@ -1063,6 +1067,91 @@ function AdminProfile({ onMutate }: { onMutate: () => void }) {
         <Button onClick={save} disabled={saving || uploadingImage || uploadingCv}>
           {saving ? "Guardando..." : "Guardar perfil"}
         </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AdminBlogVisits() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [items, setItems] = useState<BlogVisit[]>([]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await adminFetch("/api/admin/blog-visits?limit=300");
+      const payload = await response.json().catch(() => ([]));
+      if (!response.ok) {
+        throw new Error(payload?.message || "No se pudo cargar historial de visitas");
+      }
+      setItems(Array.isArray(payload) ? payload : []);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "No se pudo cargar historial de visitas");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-3">
+        <div>
+          <CardTitle>Historial de visitas al blog</CardTitle>
+          <CardDescription>
+            Registro silencioso de entradas y tiempo de permanencia.
+          </CardDescription>
+        </div>
+        <Button variant="outline" size="sm" onClick={load}>
+          Recargar
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Cargando historial…</p>
+        ) : error ? (
+          <p className="text-sm text-destructive">{error}</p>
+        ) : items.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aún no hay visitas registradas.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Ruta</TableHead>
+                  <TableHead>Slug</TableHead>
+                  <TableHead>Duración (s)</TableHead>
+                  <TableHead>IP</TableHead>
+                  <TableHead>Visitor ID</TableHead>
+                  <TableHead>User-Agent</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.map((visit) => (
+                  <TableRow key={visit.id}>
+                    <TableCell className="whitespace-nowrap text-xs">
+                      {visit.startedAt ? new Date(visit.startedAt).toLocaleString() : "-"}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">{visit.path}</TableCell>
+                    <TableCell className="text-xs">{visit.blogSlug || "-"}</TableCell>
+                    <TableCell className="text-xs">{visit.durationSeconds ?? 0}</TableCell>
+                    <TableCell className="font-mono text-xs">{visit.ip || "-"}</TableCell>
+                    <TableCell className="font-mono text-xs">{visit.visitorId}</TableCell>
+                    <TableCell className="text-xs max-w-[300px] truncate" title={visit.userAgent || ""}>
+                      {visit.userAgent || "-"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

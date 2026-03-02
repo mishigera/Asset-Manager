@@ -1,4 +1,4 @@
-import { pgTable, text, serial, json, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, json, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -50,11 +50,25 @@ export const blogPosts = pgTable("blog_posts", {
   readTime: text("read_time").notNull(),
 });
 
+export const blogVisits = pgTable("blog_visits", {
+  id: serial("id").primaryKey(),
+  visitorId: text("visitor_id").notNull(),
+  path: text("path").notNull(),
+  blogSlug: text("blog_slug"),
+  ip: text("ip"),
+  userAgent: text("user_agent"),
+  referrer: text("referrer"),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  endedAt: timestamp("ended_at"),
+  durationSeconds: integer("duration_seconds"),
+});
+
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true });
 export const insertProfileSchema = createInsertSchema(profile).omit({ id: true });
 export const insertSkillSchema = createInsertSchema(skills).omit({ id: true });
 export const insertCertificationSchema = createInsertSchema(certifications).omit({ id: true });
 export const insertBlogPostSchema = createInsertSchema(blogPosts).omit({ id: true });
+export const insertBlogVisitSchema = createInsertSchema(blogVisits).omit({ id: true });
 
 export type Project = typeof projects.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
@@ -70,3 +84,6 @@ export type InsertCertification = z.infer<typeof insertCertificationSchema>;
 
 export type BlogPost = typeof blogPosts.$inferSelect;
 export type InsertBlogPost = z.infer<typeof insertBlogPostSchema>;
+
+export type BlogVisit = typeof blogVisits.$inferSelect;
+export type InsertBlogVisit = z.infer<typeof insertBlogVisitSchema>;

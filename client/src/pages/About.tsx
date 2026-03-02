@@ -44,6 +44,11 @@ export default function About() {
     "La IA es un multiplicador de fuerza, utilízala sabiamente."
   ];
 
+  const bioBlocks = (profile?.bio || "")
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
   return (
     <Layout>
       <div className="container mx-auto px-4 md:px-8 py-20 md:py-32">
@@ -55,16 +60,24 @@ export default function About() {
           >
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">{t("about.title")}</h1>
             <p className="text-xl text-muted-foreground mb-10 leading-relaxed">
-              {profile?.bio || "Soy Gerardo, un ingeniero de software de Guadalajara apasionado por crear experiencias digitales excepcionales utilizando las últimas tecnologías web e inteligencia artificial."}
+              {bioBlocks[0] || "Soy Gerardo, un ingeniero de software de Guadalajara apasionado por crear experiencias digitales excepcionales utilizando las últimas tecnologías web e inteligencia artificial."}
             </p>
 
             <div className="prose prose-lg dark:prose-invert max-w-none text-muted-foreground leading-relaxed">
-              <p>
-                Inicié mi viaje en el desarrollo construyendo pequeños scripts y automatizaciones. Hoy en día, he construido aplicaciones complejas de pila completa que sirven a miles de usuarios.
-              </p>
-              <p>
-                Me especializo en el ecosistema de TypeScript:  React en el frontend y Node.js/PostgreSQL en el backend. o el stack MEAN (Mongo express Angular Node). Sin embargo, me considero agnóstico a la tecnología; elijo la herramienta adecuada para el trabajo adecuado.
-              </p>
+              {bioBlocks.length > 1 ? (
+                bioBlocks.slice(1).map((block, index) => (
+                  <p key={index}>{block}</p>
+                ))
+              ) : (
+                <>
+                  <p>
+                    Inicié mi viaje en el desarrollo construyendo pequeños scripts y automatizaciones. Hoy en día, he construido aplicaciones complejas de pila completa que sirven a miles de usuarios.
+                  </p>
+                  <p>
+                    Me especializo en el ecosistema de TypeScript:  React en el frontend y Node.js/PostgreSQL en el backend. o el stack MEAN (Mongo express Angular Node). Sin embargo, me considero agnóstico a la tecnología; elijo la herramienta adecuada para el trabajo adecuado.
+                  </p>
+                </>
+              )}
             </div>
 
             <h3 className="text-2xl font-bold tracking-tight mt-16 mb-6">{t("about.philosophy")}</h3>

@@ -8,6 +8,7 @@ import {
   insertSkillSchema,
   insertCertificationSchema,
   insertBlogPostSchema,
+  insertBlogVisitSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import multer, { MulterError } from "multer";
@@ -69,6 +70,47 @@ export async function registerRoutes(
     const item = await storage.getBlogPost(req.params.slug);
     if (!item) return res.status(404).json({ message: "Post not found" });
     res.json(item);
+  });
+
+  app.post("/api/analytics/blog-visits/start", async (req, res) => {
+    const parsed = insertBlogVisitSchema
+      .pick({ visitorId: true, path: true, blogSlug: true, referrer: true })
+      .safeParse(req.body);
+
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Payload inválido" });
+    }
+
+    const forwardedFor = req.headers["x-forwarded-for"];
+    const ip = Array.isArray(forwardedFor)
+      ? forwardedFor[0]
+      : typeof forwardedFor === "string"
+        ? forwardedFor.split(",")[0]?.trim()
+        : req.ip;
+
+    const created = await storage.createBlogVisit({
+      ...parsed.data,
+      blogSlug: parsed.data.blogSlug || null,
+      referrer: parsed.data.referrer || req.get("referer") || null,
+      ip: ip || null,
+      userAgent: req.get("user-agent") || null,
+    });
+
+    res.status(201).json({ ok: true, visitId: created.id });
+  });
+
+  app.post("/api/analytics/blog-visits/end", async (req, res) => {
+    const schema = z.object({
+      visitId: z.number().int().positive(),
+      durationSeconds: z.number().int().min(0).max(86400),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Payload inválido" });
+    }
+
+    await storage.finishBlogVisit(parsed.data.visitId, parsed.data.durationSeconds);
+    res.json({ ok: true });
   });
 
   app.get("/api/profile", async (_req, res) => {
@@ -250,6 +292,13 @@ export async function registerRoutes(
   app.get("/api/admin/profile", authMiddleware, async (_req, res) => {
     const item = await storage.getProfile();
     res.json(item);
+  });
+
+  app.get("/api/admin/blog-visits", authMiddleware, async (req, res) => {
+    const queryLimit = Number(req.query.limit);
+    const limit = Number.isFinite(queryLimit) ? queryLimit : 200;
+    const items = await storage.getBlogVisits(limit);
+    res.json(items);
   });
 
   app.patch("/api/admin/profile", authMiddleware, async (req, res) => {

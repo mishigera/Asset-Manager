@@ -1,13 +1,14 @@
 import { db } from "./db";
 import {
-  projects, profile, skills, certifications, blogPosts,
+  projects, profile, skills, certifications, blogPosts, blogVisits,
   type Project, type InsertProject,
   type Profile, type InsertProfile,
   type Skill, type InsertSkill,
   type Certification, type InsertCertification,
-  type BlogPost, type InsertBlogPost
+  type BlogPost, type InsertBlogPost,
+  type BlogVisit, type InsertBlogVisit,
 } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 export interface IStorage {
   getProjects(): Promise<Project[]>;
@@ -21,12 +22,15 @@ export interface IStorage {
   getBlogPosts(): Promise<BlogPost[]>;
   getBlogPost(slug: string): Promise<BlogPost | undefined>;
   getBlogPostById(id: number): Promise<BlogPost | undefined>;
+  getBlogVisits(limit?: number): Promise<BlogVisit[]>;
 
   createProject(project: InsertProject): Promise<Project>;
   upsertProfile(data: Partial<InsertProfile>): Promise<Profile>;
   createSkill(skill: InsertSkill): Promise<Skill>;
   createCertification(cert: InsertCertification): Promise<Certification>;
   createBlogPost(post: InsertBlogPost): Promise<BlogPost>;
+  createBlogVisit(visit: InsertBlogVisit): Promise<BlogVisit>;
+  finishBlogVisit(id: number, durationSeconds: number): Promise<BlogVisit | undefined>;
 
   updateProject(id: number, data: Partial<InsertProject>): Promise<Project | undefined>;
   updateSkill(id: number, data: Partial<InsertSkill>): Promise<Skill | undefined>;
@@ -94,6 +98,14 @@ export class DatabaseStorage implements IStorage {
     return post;
   }
 
+  async getBlogVisits(limit = 200): Promise<BlogVisit[]> {
+    return db
+      .select()
+      .from(blogVisits)
+      .orderBy(desc(blogVisits.startedAt))
+      .limit(Math.max(1, Math.min(limit, 1000)));
+  }
+
   async createProject(project: InsertProject): Promise<Project> {
     const p = { ...project, stack: [...(project.stack || [])] };
     const [result] = await db.insert(projects).values(p).returning();
@@ -123,6 +135,24 @@ export class DatabaseStorage implements IStorage {
   async createBlogPost(post: InsertBlogPost): Promise<BlogPost> {
     const [p] = await db.insert(blogPosts).values(post).returning();
     return p;
+  }
+
+  async createBlogVisit(visit: InsertBlogVisit): Promise<BlogVisit> {
+    const [created] = await db.insert(blogVisits).values(visit).returning();
+    return created;
+  }
+
+  async finishBlogVisit(id: number, durationSeconds: number): Promise<BlogVisit | undefined> {
+    const [updated] = await db
+      .update(blogVisits)
+      .set({
+        endedAt: new Date(),
+        durationSeconds,
+      })
+      .where(eq(blogVisits.id, id))
+      .returning();
+
+    return updated;
   }
 
   async updateProject(id: number, data: Partial<InsertProject>): Promise<Project | undefined> {
