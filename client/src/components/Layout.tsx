@@ -5,11 +5,20 @@ import { LanguageToggle } from "./LanguageToggle";
 import { Chatbot } from "./Chatbot";
 import { useI18n } from "@/lib/i18n";
 import { motion } from "framer-motion";
-import { Github, Linkedin, Twitter } from "lucide-react";
+import { Github, Linkedin, Menu, Twitter } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { useBlogAnalytics } from "@/hooks/use-blog-analytics";
 
 export function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const { t } = useI18n();
+
+  const blogSlug = location.startsWith("/blog/")
+    ? decodeURIComponent(location.replace("/blog/", "").split("/")[0] || "") || null
+    : null;
+
+  useBlogAnalytics({ blogSlug, path: location });
 
   const navLinks = [
     { href: "/", label: t("nav.home") },
@@ -47,7 +56,31 @@ export function Layout({ children }: { children: ReactNode }) {
             ))}
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 md:gap-2">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="md:hidden" aria-label="Abrir menú de navegación">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[80%] max-w-xs">
+                <SheetHeader>
+                  <SheetTitle>Menú</SheetTitle>
+                </SheetHeader>
+                <nav className="mt-6 flex flex-col gap-2">
+                  {navLinks.map((link) => (
+                    <SheetClose asChild key={link.href}>
+                      <Link
+                        href={link.href}
+                        className={`rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-muted ${location === link.href ? "bg-muted text-foreground" : "text-muted-foreground"}`}
+                      >
+                        {link.label}
+                      </Link>
+                    </SheetClose>
+                  ))}
+                </nav>
+              </SheetContent>
+            </Sheet>
             <LanguageToggle />
             <ThemeToggle />
           </div>

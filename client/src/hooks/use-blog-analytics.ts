@@ -4,26 +4,32 @@ import { apiUrl } from "@/lib/apiBase";
 const VISITOR_KEY = "portfolio_visitor_id";
 
 function getVisitorId(): string {
-  const existing = localStorage.getItem(VISITOR_KEY);
-  if (existing) return existing;
+  try {
+    const existing = localStorage.getItem(VISITOR_KEY);
+    if (existing) return existing;
 
-  const newId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  localStorage.setItem(VISITOR_KEY, newId);
-  return newId;
+    const newId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(VISITOR_KEY, newId);
+    return newId;
+  } catch {
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
 }
 
 interface UseBlogAnalyticsOptions {
   blogSlug?: string | null;
+  path?: string;
 }
 
 export function useBlogAnalytics(options: UseBlogAnalyticsOptions = {}) {
   useEffect(() => {
     let active = true;
+    let completed = false;
     let visitId: number | null = null;
     const startedAt = Date.now();
 
     const visitorId = getVisitorId();
-    const path = window.location.pathname;
+    const path = options.path || window.location.pathname;
     const referrer = document.referrer || null;
 
     const startVisit = async () => {
@@ -31,6 +37,7 @@ export function useBlogAnalytics(options: UseBlogAnalyticsOptions = {}) {
         const response = await fetch(apiUrl("/api/analytics/blog-visits/start"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          keepalive: true,
           body: JSON.stringify({
             visitorId,
             path,
@@ -52,9 +59,9 @@ export function useBlogAnalytics(options: UseBlogAnalyticsOptions = {}) {
 
     void startVisit();
 
-    return () => {
-      active = false;
-      if (!visitId) return;
+    const finishVisit = () => {
+      if (completed || !visitId) return;
+      completed = true;
 
       const durationSeconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
       const payload = JSON.stringify({ visitId, durationSeconds });
@@ -73,5 +80,21 @@ export function useBlogAnalytics(options: UseBlogAnalyticsOptions = {}) {
         keepalive: true,
       });
     };
-  }, [options.blogSlug]);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        finishVisit();
+      }
+    };
+
+    window.addEventListener("pagehide", finishVisit);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      active = false;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", finishVisit);
+      finishVisit();
+    };
+  }, [options.blogSlug, options.path]);
 }

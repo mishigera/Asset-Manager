@@ -7,12 +7,10 @@ import { useBlogPost } from "@/hooks/use-blog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
-import { useBlogAnalytics } from "@/hooks/use-blog-analytics";
 
 export default function BlogDetail() {
   const { slug } = useParams<{ slug: string }>();
   const { data: post, isLoading, error } = useBlogPost(slug || "");
-  useBlogAnalytics({ blogSlug: slug || null });
 
   if (isLoading) {
     return (
